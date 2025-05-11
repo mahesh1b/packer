@@ -12,7 +12,7 @@ packer {
 }
 
 source "amazon-ebs" "ubuntu" {
-  ami_name      = "ubuntu-24.04-linux-aws"
+  ami_name      = "netbird-43.02-ubuntu-aws"
   instance_type = "t4g.micro"
   region        = "us-east-2"
   source_ami_filter {
@@ -28,26 +28,27 @@ source "amazon-ebs" "ubuntu" {
 }
 
 build {
-  name = "Configure Netbird"
+  name = "Netbird Image Construction"
 
   sources = [
     "source.amazon-ebs.ubuntu"
   ]
 
-  # Install docker and docker compose
+  # Stage 1: Docker Installation
   provisioner "ansible" {
     playbook_file = "./install-docker.yml"
   }
 
-  # Get the Netibird code
+  # Stage 2: Netbird Installation
   provisioner "ansible" {
     playbook_file = "./install-netbird.yml"
   }
 
-  # Copy setup.env to the remote instance
-  provisioner "file" {
-    source      = "setup.env"
-    destination = "/home/ubuntu/netbird/infrastructure_files/setup.env"
+  # Cleanup after https://github.com/hashicorp/packer/issues/9118
+  provisioner "shell" {
+    inline = [
+      "rm -rf /home/ubuntu/~mahesh"
+    ]
   }
 
 }

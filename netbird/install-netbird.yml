@@ -1,0 +1,66 @@
+---
+- name: Clone specific Netbird version
+  hosts: default
+  become: true
+  remote_user: ubuntu
+  vars:
+    netbird_repo: "https://github.com/netbirdio/netbird/"
+    netbird_version: "v0.43.2"  # ← Set your desired version here
+    clone_dest: "/home/ubuntu/netbird"  # Set your destination path
+
+  tasks:
+    - name: Verify git is installed
+      ansible.builtin.package:
+        name: git
+        state: present
+      become: true
+
+    - name: Clone the specified release
+      ansible.builtin.git:
+        repo: "{{ netbird_repo }}"
+        dest: "{{ clone_dest }}"
+        version: "{{ netbird_version }}"
+        depth: 1
+        force: yes
+      register: clone_result
+
+    - name: Verify clone was successful
+      ansible.builtin.debug:
+        msg: "Successfully cloned Netbird {{ netbird_version }} to {{ clone_dest }}"
+      when: clone_result.changed
+
+    - name: Show clone status if already exists
+      ansible.builtin.debug:
+        msg: "Netbird {{ netbird_version }} already exists at {{ clone_dest }}"
+      when: not clone_result.changed
+
+    - name: Copy setup.env to server
+      ansible.builtin.copy:
+        src: "./setup.env"
+        dest: "{{ clone_dest }}/infrastructure_files/setup.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+        remote_src: false
+      register: copy_result
+
+    - name: Confirm setup.env copy
+      ansible.builtin.debug:
+        msg: "setup.env successfully copied to {{ clone_dest }}/infrastructure_files/setup.env"
+      when: copy_result.changed
+
+    - name: Notify if setup.env already exists
+      ansible.builtin.debug:
+        msg: "setup.env already exists at {{ clone_dest }}/infrastructure_files/setup.env"
+      when: not copy_result.changed
+
+    - name: Run configure.sh script
+      ansible.builtin.command: "{{ clone_dest }}/infrastructure_files/configure.sh"
+      args:
+        chdir: "{{ clone_dest }}/infrastructure_files"
+      register: configure_result
+
+    - name: Show configure.sh errors if any
+      ansible.builtin.debug:
+        var: configure_result.stderr_lines
+      when: configure_result.stderr_lines | length > 0

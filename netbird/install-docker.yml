@@ -2,7 +2,8 @@
 - name: Install Docker on Ubuntu
   hosts: default
   become: true
-
+  remote_user: ubuntu
+  
   tasks:
     - name: Update apt package index
       apt:
@@ -61,6 +62,27 @@
           - docker-buildx-plugin
           - docker-compose-plugin
         state: present
+    
+    - name: Create Docker daemon configuration for log settings
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+            "max-size": "10m",
+            "max-file": "3"
+            }
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart Docker to apply log configuration
+      systemd:
+        name: docker
+        state: restarted
+        enabled: yes
 
     - name: Add ubuntu user to docker group
       user:
